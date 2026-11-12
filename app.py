@@ -320,7 +320,8 @@ if step == 0:
             a["height"] = st.text_input(f"HEIGHT ({u['len']})", value=a["height"])
             
     vol = calc_room_volume(a)
-    st.info(f"Room volume: **{f'{vol} {u[\"vol\"]}' if vol is not None else '—'}**")
+    vol_display = f"{vol} {u['vol']}" if vol is not None else "—"
+    st.info(f"Room volume: **{vol_display}**")
 
     st.markdown("#### Physical layout")
     a["barriers"] = st.toggle("Barriers within the room (curtains, shielding)", value=a["barriers"])
@@ -389,126 +390,4 @@ elif step == 4:
             for k, v in rows:
                 col_k, col_v = st.columns([1, 2])
                 with col_k:
-                    st.markdown(f"<span style='color: #64748b; font-size:15px;'>{k}</span>", unsafe_allow_html=True)
-                with col_v:
-                    st.markdown(f"<span style='font-weight: 500; font-size:15px;'>{v}</span>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("#### 📷 Photos")
-    st.caption("Optional – upload photos of the space")
-    uploaded_files = st.file_uploader("Add photo", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True)
-    if uploaded_files:
-        for uf in uploaded_files:
-            if not any(p["name"] == uf.name for p in a["photos"]):
-                a["photos"].append({"name": uf.name, "bytes": uf.getvalue(), "caption": ""})
-
-    if a["photos"]:
-        p_cols = st.columns(2)
-        for idx, p in enumerate(a["photos"]):
-            with p_cols[idx % 2]:
-                st.image(p["bytes"], use_container_width=True)
-                p["caption"] = st.text_input("Caption", value=p["caption"], key=f"cap_{idx}", placeholder="Caption")
-                if st.button("🗑️ Remove photo", key=f"del_{idx}"):
-                    a["photos"].pop(idx)
-                    st.rerun()
-
-# ==============================================================================
-# STEP 5: QUALITATIVE SCREENING
-# ==============================================================================
-elif step == 5:
-    st.subheader("Qualitative screening")
-    st.caption("Choose the condition that best describes this space.")
-    
-    suggested_id = suggest_scenario(a)
-    suggested_sc = get_scenario(suggested_id)
-    if suggested_sc:
-        st.info(f"💡 Based on your inputs, the indicative estimate points to **{suggested_sc['title']}**. Confirm or choose another.")
-
-    for s in SCENARIOS:
-        is_selected = (a["scenario"] == s["id"])
-        with st.container(border=True):
-            col_a, col_b = st.columns([4, 1])
-            with col_a:
-                st.markdown(f"**{s['title']}** {'✅' if is_selected else ''}")
-                st.caption(s["detail"])
-                st.markdown(f"<span style='font-size:12px; font-weight:600;'>ODA required: {s['odaNote']}</span>", unsafe_allow_html=True)
-            with col_b:
-                st.markdown(f"<div style='text-align:right;'><span style='background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:bold;'>Cat {s['category']}</span></div>", unsafe_allow_html=True)
-                if st.button("Select" if not is_selected else "Selected", key=f"sel_{s['id']}", type="primary" if is_selected else "secondary", use_container_width=True):
-                    a["scenario"] = s["id"]
-                    st.rerun()
-
-# ==============================================================================
-# STEP 6: CONTROLS & NOTES
-# ==============================================================================
-elif step == 6:
-    sc = get_scenario(a["scenario"])
-    if sc:
-        st.subheader(sc["controlsTitle"])
-        if sc["oda"]:
-            st.error(f"**Quantitative ODA required:** {sc['odaNote']}")
-        else:
-            st.success(f"**Quantitative ODA required:** {sc['odaNote']}")
-
-        st.markdown("#### Mandatory Controls:")
-        for c in sc["controls"]:
-            st.markdown(f"✅ {c}")
-
-    st.markdown("#### Notes")
-    a["notes"] = st.text_area("Optional comments or actions required…", value=a["notes"], height=100)
-
-# ==============================================================================
-# BOTTOM NAVIGATION BAR
-# ==============================================================================
-st.markdown("---")
-nav_col1, nav_col2 = st.columns(2)
-
-if step == 4:
-    with nav_col1:
-        if st.button("Edit details", use_container_width=True):
-            st.session_state.step = 0
-            st.rerun()
-    with nav_col2:
-        if st.button("Proceed →", type="primary", use_container_width=True):
-            st.session_state.step = 5
-            st.rerun()
-else:
-    with nav_col1:
-        if step > 0:
-            if st.button("← Back", use_container_width=True):
-                st.session_state.step = step - 1
-                st.rerun()
-    with nav_col2:
-        if step < 6:
-            btn_label = "Submit evaluation →" if step == 5 else "Next →"
-            if st.button(btn_label, type="primary", use_container_width=True):
-                # Validation matching next() in AssessmentForm.tsx
-                if step == 0:
-                    if not a["assessor"].strip():
-                        st.error("Add the assessor's name")
-                        st.stop()
-                    if not a["building"].strip() and not a["room"].strip():
-                        st.error("Add the building or room")
-                        st.stop()
-                if step == 5 and not a["scenario"]:
-                    st.error("Choose the condition that applies")
-                    st.stop()
-                st.session_state.step = step + 1
-                st.rerun()
-        else:
-            if st.button("💾 Save & register space", type="primary", use_container_width=True):
-                # Save locally as JSON (excluding raw image bytes for clean JSON serialization)
-                save_payload = {k: v for k, v in a.items() if k != "photos"}
-                save_payload["photo_captions"] = [p["caption"] for p in a["photos"]]
-                filename = f"assessment_{a['id']}.json"
-                with open(filename, "w", encoding="utf-8") as f:
-                    json.dump(save_payload, f, indent=2)
-                st.toast(f"Assessment saved locally as {filename}!", icon="✅")
-                st.success(f"✅ Assessment saved on this device as `{filename}`!")
-                st.download_button(
-                    "⬇️ Download Assessment JSON",
-                    data=json.dumps(save_payload, indent=2),
-                    file_name=filename,
-                    mime="application/json",
-                    use_container_width=True
-                )
+                    st.markdown(f"<span style='color: #64748b;
