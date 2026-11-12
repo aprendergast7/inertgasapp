@@ -13,10 +13,15 @@ st.set_page_config(
 # --- Constants & Reference Data ---
 STEPS = ["Space", "Normal ops", "Container", "SPOF", "Review", "Screening", "Controls"]
 
+# Re-structured as clean single-line dictionaries to avoid compile warnings
 UNIT_LABEL = {
     "metric": {"len": "m", "vol": "m³", "air": "m³/hr", "gas": "LPM"},
-    "imperial": {"len": "ft", "vol": "ft³", "air": "cfm", "gas": "CFM"},
+    "imperial": {"len": "ft", "vol": "ft³", "air": "cfm", "gas": "CFM"}
 }
 
 GAS_TYPES = ["Nitrogen (N2)", "Argon (Ar)", "Helium (He)", "Carbon Dioxide (CO2)"]
-CRYOGEN_TYPES = ["Liquid Nitrogen (LIN)", "Liquid Argon (LAR)", 
+CRYOGEN_TYPES = ["Liquid Nitrogen (LIN)", "Liquid Argon (LAR)", "Liquid Helium (LHe)"]
+
+SCENARIOS = [
+    {
+        "id": "cat_a_confined"
